@@ -1,4 +1,6 @@
 ---
+// Dossier de l'app ('/rest-timer/' sur GitHub Pages) : aucun chemin absolu en dur.
+const base = import.meta.env.BASE_URL;
 ---
 
 <html lang="fr">
@@ -14,8 +16,9 @@
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		<meta name="apple-mobile-web-app-title" content="Repos" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
+		<link rel="manifest" href={`${base}manifest.webmanifest`} />
+		<link rel="icon" type="image/svg+xml" href={`${base}icons/icon.svg`} />
+		<link rel="apple-touch-icon" href={`${base}icons/apple-touch-icon.png`} />
 		<meta name="generator" content={Astro.generator} />
 		<title>Rest timer</title>
 	</head>
@@ -199,6 +202,14 @@
 		const restored = resume(saved.endTime, saved.duration, Date.now());
 		if (restored.kind === 'idle') clearRest();
 		else setState(restored);
+	}
+
+	// ---- Hors ligne ----------------------------------------------------------
+
+	// En production seulement, pour ne pas servir de vieux fichiers en dev.
+	// Échec (HTTP sans TLS, navigateur ancien) : l'app marche, sans hors ligne.
+	if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+		navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`).catch(() => {});
 	}
 </script>
 

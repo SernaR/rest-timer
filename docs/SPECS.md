@@ -126,7 +126,7 @@ Trois moments distincts :
     et maskable, plus un `apple-touch-icon` de 180 px.
   - Balises `apple-mobile-web-app-*` pour iPad.
   - Fonctionnement hors ligne : service worker écrit à la main
-    (`public/sw.js`, cache-first), sans dépendance.
+    (cache-first), sans dépendance, versionné automatiquement à chaque build.
 - **Hébergement** : GitHub Pages, à l'adresse
   `https://sernar.github.io/rest-timer/` (HTTPS fourni par GitHub).
   - Déploiement automatique par GitHub Actions à chaque push sur `main`.

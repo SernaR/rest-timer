@@ -12,8 +12,9 @@ Référence : `SPECS.md` (validé). Aucune dépendance ajoutée en dehors d'Astr
 | `src/scripts/wakelock.ts` | Prise / libération / reprise du Wake Lock |
 | `src/scripts/storage.ts` | Sauvegarde / restauration de l'état dans le `localStorage` |
 | `public/manifest.webmanifest` | Manifeste PWA |
-| `public/icons/*` | Icônes 192, 512, maskable 512, apple-touch 180 |
-| `public/sw.js` | Service worker cache-first |
+| `public/icons/*` | Icône SVG (favicon), PNG 192, 512, maskable 512, apple-touch 180 |
+| `src/service-worker/sw.js` | Code du service worker cache-first |
+| `src/pages/sw.js.ts` | Sert `sw.js` en injectant une version datée du build |
 
 ## Modèle
 
@@ -106,13 +107,20 @@ Calculs (fonctions pures dans `timer.ts`) :
 - Sur `visibilitychange`, la boucle se recale simplement sur `endTime`.
 
 ### 7. PWA
-- `manifest.webmanifest` : nom, `display: standalone`, `start_url: /`,
+- `manifest.webmanifest` : nom, `display: standalone`, `start_url: ./`,
   couleurs, icônes.
 - Icônes : un SVG source (anneau + chiffre), exporté en PNG 192 / 512 /
-  maskable 512 / 180 par un script ponctuel (hors dépendances du projet).
-- `sw.js` : cache versionné ; à l'installation, mise en cache de `/` et du
-  manifeste ; ensuite cache-first avec mise en cache des fichiers `/_astro/*`
-  au premier chargement ; suppression des anciens caches à l'activation.
+  maskable 512 / 180 par Chrome headless (script ponctuel, hors projet).
+  La variante maskable tient dans la zone sûre (cercle central de 80 %).
+- `sw.js` : écrit à la main dans `src/service-worker/`, servi par l'endpoint
+  `src/pages/sw.js.ts` qui y injecte une version datée du build : chaque
+  déploiement change le service worker, donc le cache (pas de version à
+  incrémenter à la main).
+  - Installation : page, manifeste, icônes, et fichiers `/_astro/*` lus dans
+    la page (ils sont chargés avant que le service worker ne contrôle la
+    page, il faut donc les mettre en cache explicitement) ; `skipWaiting`.
+  - Activation : suppression des anciens caches, `clients.claim`.
+  - Cache-first ; toute navigation sert la page de l'app.
 - Enregistrement du service worker uniquement en production
   (`import.meta.env.PROD`) pour ne pas gêner le dev.
 - **Sous-dossier GitHub Pages** : l'app est servie sous `/rest-timer/`, pas à
@@ -126,8 +134,10 @@ Calculs (fonctions pures dans `timer.ts`) :
 
 ### 8. Vérification
 - `npm run build` sans erreur ni avertissement TypeScript.
-- Dev : `astro dev --background`, contrôle dans le navigateur desktop.
-- Recette sur tablette (`npm run dev -- --host`) :
+- Dev : `astro dev --background`, contrôle dans le navigateur desktop, à
+  l'adresse `http://localhost:4321/rest-timer/`.
+- Recette sur tablette (`npm run dev -- --host`, puis
+  `http://192.168.x.x:4321/rest-timer/`) :
   - [ ] 30 et 60 lancent le bon décompte, affichage `60` → `1`.
   - [ ] Préavis à 10 s (son + orange), tics 5 → 1 (son + rouge + pulse +
         clignotement léger),
@@ -149,15 +159,15 @@ Calculs (fonctions pures dans `timer.ts`) :
 - **Dépôt** : créer le dépôt GitHub `SernaR/rest-timer`, ajouter le remote,
   renommer la branche locale `master` en `main`, pousser.
 - **Config Astro** (`astro.config.mjs`) :
-  `site: 'https://sernar.github.io'`, `base: '/rest-timer'` (posée dès le
+  `site: 'https://sernar.github.io'`, `base: '/rest-timer/'` (posée dès le
   commit 5 pour tester les chemins en preview).
 - **Workflow** `.github/workflows/deploy.yml` : action officielle
   `withastro/action` (build) puis `actions/deploy-pages`, déclenché à chaque
   push sur `main` et manuellement (`workflow_dispatch`).
 - **Réglage GitHub** : Settings → Pages → Source : « GitHub Actions ».
-- **Mises à jour** : incrémenter la version du cache dans `sw.js` à chaque
-  déploiement qui modifie l'app ; la tablette récupère la nouvelle version à
-  une ouverture avec réseau, active à l'ouverture suivante.
+- **Mises à jour** : automatiques (version du service worker datée du
+  build) ; la tablette récupère la nouvelle version à une ouverture avec
+  réseau, active à l'ouverture suivante.
 - Adresse finale : `https://sernar.github.io/rest-timer/`.
 - Recette sur la version déployée :
   - [ ] Page servie en HTTPS, aucune ressource en 404 (chemins sous
