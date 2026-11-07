@@ -39,8 +39,94 @@
 				</button>
 			</nav>
 		</main>
+		<div class="flash" id="flash" aria-hidden="true"></div>
 	</body>
 </html>
+
+<script>
+	import {
+		IDLE,
+		cancel,
+		displaySeconds,
+		phaseFor,
+		progress,
+		remainingMs,
+		start,
+		tick,
+		type Alert,
+		type State,
+	} from '../scripts/timer';
+
+	const body = document.body;
+	const countEl = document.getElementById('count')!;
+	const ringEl = document.getElementById('ring')!;
+	const flashEl = document.getElementById('flash')!;
+	const countdownEl = document.getElementById('countdown')!;
+
+	let state: State = IDLE;
+	let frameId = 0;
+	let shownCount = '';
+
+	/** Relance une animation CSS, même si elle est déjà en cours. */
+	function replay(el: Element, className: string) {
+		el.classList.remove(className);
+		void (el as HTMLElement).offsetWidth;
+		el.classList.add(className);
+	}
+
+	function onAlert(alert: Alert) {
+		if (alert === 'tick') {
+			replay(countEl, 'pulse');
+			replay(flashEl, 'on');
+		}
+	}
+
+	function render(now: number) {
+		const remaining = remainingMs(state, now);
+		const phase = state.kind === 'running' ? phaseFor(remaining) : 'normal';
+		if (body.dataset.state !== state.kind) body.dataset.state = state.kind;
+		if (body.dataset.phase !== phase) body.dataset.phase = phase;
+
+		const count = String(displaySeconds(remaining));
+		if (count !== shownCount) {
+			countEl.textContent = count;
+			shownCount = count;
+		}
+		ringEl.style.strokeDashoffset = String(1 - progress(state, now));
+	}
+
+	function frame() {
+		const now = Date.now();
+		const result = tick(state, now);
+		state = result.state;
+		if (result.alert) onAlert(result.alert);
+		render(now);
+		frameId = state.kind === 'idle' ? 0 : requestAnimationFrame(frame);
+	}
+
+	function setState(next: State) {
+		state = next;
+		cancelAnimationFrame(frameId);
+		frame();
+	}
+
+	function startRest(button: HTMLElement) {
+		setState(start(Number(button.dataset.duration), Date.now()));
+	}
+
+	for (const button of document.querySelectorAll<HTMLElement>('.duration')) {
+		button.addEventListener('pointerdown', () => startRest(button));
+		// Clavier (Entrée / Espace) : les clics souris et tactiles passent par pointerdown.
+		button.addEventListener('click', (e) => {
+			if (e.detail === 0) startRest(button);
+		});
+	}
+
+	countdownEl.addEventListener('pointerdown', () => setState(cancel(state)));
+	countdownEl.addEventListener('click', (e) => {
+		if (e.detail === 0) setState(cancel(state));
+	});
+</script>
 
 <style is:global>
 	/* ---- Couleurs par phase -------------------------------------------- */
@@ -200,6 +286,48 @@
 		font-size: 42vmin;
 		font-weight: 700;
 		line-height: 1;
+	}
+
+	/* Décompte final : le chiffre pulse à chaque seconde. */
+	.count.pulse {
+		animation: pulse 300ms ease-out;
+	}
+
+	@keyframes pulse {
+		from {
+			transform: scale(1.12);
+		}
+		to {
+			transform: scale(1);
+		}
+	}
+
+	/* Décompte final : léger éclaircissement du fond à chaque seconde. */
+	.flash {
+		position: fixed;
+		inset: 0;
+		background: #ffffff;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	.flash.on {
+		animation: flash 220ms ease-out;
+	}
+
+	@keyframes flash {
+		from {
+			opacity: 0.16;
+		}
+		to {
+			opacity: 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.flash.on {
+			animation: none;
+		}
 	}
 
 	.go {
