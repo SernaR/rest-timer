@@ -1,0 +1,42 @@
+name: Déploiement GitHub Pages
+
+on:
+  # À chaque push sur main.
+  push:
+    branches: [main]
+  # Lancement manuel depuis l'onglet Actions.
+  workflow_dispatch:
+
+# Lecture du dépôt, publication sur Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un seul déploiement à la fois ; un nouveau push annule celui en attente.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupération du dépôt
+        uses: actions/checkout@v7
+
+      # Installe avec npm (package-lock.json), lance `npm run build`
+      # (astro check + astro build) et prépare le dossier dist/.
+      - name: Installation, build et envoi du site
+        uses: withastro/action@v6
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Déploiement sur GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
