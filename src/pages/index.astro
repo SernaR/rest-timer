@@ -52,6 +52,8 @@
 
 <script>
 	import * as audio from '../scripts/audio';
+	import { clearRest, loadRest, saveRest } from '../scripts/storage';
+	import * as wakeLock from '../scripts/wakelock';
 	import {
 		IDLE,
 		cancel,
@@ -59,6 +61,7 @@
 		phaseFor,
 		progress,
 		remainingMs,
+		resume,
 		start,
 		tick,
 		type Alert,
@@ -106,17 +109,37 @@
 		ringEl.style.strokeDashoffset = String(1 - progress(state, now));
 	}
 
+	/**
+	 * Change d'état et applique les effets de bord des transitions :
+	 * sauvegarde + Wake Lock au démarrage d'un repos, effacement + libération
+	 * au retour à l'accueil.
+	 */
+	function update(next: State) {
+		const prev = state;
+		state = next;
+		if (
+			next.kind === 'running' &&
+			(prev.kind !== 'running' || prev.endTime !== next.endTime)
+		) {
+			saveRest({ endTime: next.endTime, duration: next.duration });
+			wakeLock.acquire();
+		} else if (next.kind === 'idle' && prev.kind !== 'idle') {
+			clearRest();
+			wakeLock.release();
+		}
+	}
+
 	function frame() {
 		const now = Date.now();
 		const result = tick(state, now);
-		state = result.state;
+		update(result.state);
 		if (result.alert) onAlert(result.alert);
 		render(now);
 		frameId = state.kind === 'idle' ? 0 : requestAnimationFrame(frame);
 	}
 
 	function setState(next: State) {
-		state = next;
+		update(next);
 		cancelAnimationFrame(frameId);
 		frame();
 	}
@@ -168,6 +191,15 @@
 	}
 
 	renderSound();
+
+	// ---- Reprise après rechargement ---------------------------------------
+
+	const saved = loadRest();
+	if (saved) {
+		const restored = resume(saved.endTime, saved.duration, Date.now());
+		if (restored.kind === 'idle') clearRest();
+		else setState(restored);
+	}
 </script>
 
 <style is:global>

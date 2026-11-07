@@ -33,6 +33,27 @@ export function start(duration: number, now: number): State {
 	return { kind: 'running', endTime: now + duration * 1000, duration, fired: [] };
 }
 
+/**
+ * Reprend un repos sauvegardé (rechargement de la page) : décompte si
+ * l'échéance est à venir, GO si elle vient de passer, accueil sinon.
+ * Les seuils déjà franchis sont marqués joués : aucun son rejoué.
+ */
+export function resume(endTime: number, duration: number, now: number): State {
+	const remaining = endTime - now;
+	if (remaining > 0) {
+		return {
+			kind: 'running',
+			endTime,
+			duration,
+			fired: THRESHOLDS.filter((t) => remaining <= t * 1000),
+		};
+	}
+	if (now < endTime + GO_DISPLAY_MS) {
+		return { kind: 'go', until: endTime + GO_DISPLAY_MS };
+	}
+	return IDLE;
+}
+
 /** Annule un décompte en cours. Sans effet dans les autres états. */
 export function cancel(state: State): State {
 	return state.kind === 'running' ? IDLE : state;
