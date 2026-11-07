@@ -78,13 +78,15 @@ Calculs (fonctions pures dans `timer.ts`) :
 ### 4. Sons (`audio.ts`)
 - Réglage `soundOn` (faux par défaut), lu / écrit dans le `localStorage`
   (clé distincte de l'état du minuteur, `try/catch`).
-- Bouton haut-parleur en coin (`position: fixed`, dans la `safe-area`), zone
-  tactile ≥ 44 px, `pointerdown` avec `stopPropagation` pour ne pas annuler le
-  décompte. `aria-pressed` + icône barrée / non barrée.
+- Bouton haut-parleur en haut à gauche (`position: fixed`, dans la
+  `safe-area`), zone tactile 52 px, hors de la zone décompte (n'annule donc
+  rien). Réagit au `click`. `aria-pressed` + icône barrée / non barrée.
 - Activation : crée / `resume()` l'`AudioContext` et joue un bip court de
-  confirmation. Coupure : plus aucun son joué (vérifié au moment de jouer).
-- `AudioContext` débloqué (`resume()`) à chaque appui sur 30 / 60 si
-  `soundOn` (cas du réglage restauré au rechargement).
+  confirmation. Coupure : `suspend()` (coupe aussi un bip en cours) et plus
+  aucun son joué.
+- `AudioContext` débloqué (`resume()`) sur chaque `pointerup` / `touchend` /
+  `keydown` du document si `soundOn` : un `pointerdown` tactile ne débloque
+  pas l'audio (cas du réglage restauré au rechargement, coupure iOS).
 - Oscillateur + enveloppe de gain (pas de clic) :
   - préavis 10 s : bip moyen (~880 Hz, ~150 ms) ;
   - tic 5 → 1 : bip court (~880 Hz, ~80 ms) ;

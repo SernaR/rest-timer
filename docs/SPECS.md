@@ -98,10 +98,12 @@ Trois moments distincts :
   - Chaque alerte n'est jouée qu'une fois (on mémorise les seuils déjà
     franchis), même si une frame saute.
 - **Son sur iPad** : iOS n'autorise le son qu'après une action de
-  l'utilisateur. L'`AudioContext` est créé/débloqué lors de l'appui sur le
-  bouton son (activation) et sur 30 ou 60 si le son est activé, ce qui
-  garantit que les bips suivants sont audibles (y compris quand le réglage
-  « son activé » est restauré au rechargement).
+  l'utilisateur, et un simple contact du doigt (`pointerdown`) ne compte pas :
+  il faut le doigt relevé (`pointerup` / `touchend`), un clic ou une touche.
+  L'`AudioContext` est donc créé/débloqué au clic sur le bouton son, puis à
+  chaque doigt relevé n'importe où si le son est activé (l'appui sur 30 / 60
+  suffit). Cela couvre le réglage restauré au rechargement et une coupure de
+  l'audio par iOS. Les décomptes, eux, démarrent toujours dès le `pointerdown`.
 - **Arrière-plan** : si l'onglet est masqué puis réaffiché, le décompte se
   recale sur `endTime`. L'état est sauvegardé dans le `localStorage` pour
   survivre à un rechargement de la page par le système (iOS).

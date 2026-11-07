@@ -40,10 +40,18 @@
 			</nav>
 		</main>
 		<div class="flash" id="flash" aria-hidden="true"></div>
+		<button type="button" class="sound" id="sound" aria-pressed="false" aria-label="Son">
+			<svg viewBox="0 0 24 24" aria-hidden="true">
+				<path class="speaker" d="M3.5 9.5v5h3.5l5 4v-13l-5 4z" />
+				<path class="on" d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11" />
+				<path class="off" d="M15.5 9.5l5 5M20.5 9.5l-5 5" />
+			</svg>
+		</button>
 	</body>
 </html>
 
 <script>
+	import * as audio from '../scripts/audio';
 	import {
 		IDLE,
 		cancel,
@@ -62,10 +70,12 @@
 	const ringEl = document.getElementById('ring')!;
 	const flashEl = document.getElementById('flash')!;
 	const countdownEl = document.getElementById('countdown')!;
+	const soundEl = document.getElementById('sound')!;
 
 	let state: State = IDLE;
 	let frameId = 0;
 	let shownCount = '';
+	let soundOn = audio.loadSoundOn();
 
 	/** Relance une animation CSS, même si elle est déjà en cours. */
 	function replay(el: Element, className: string) {
@@ -75,6 +85,7 @@
 	}
 
 	function onAlert(alert: Alert) {
+		if (soundOn) audio.play(alert);
 		if (alert === 'tick') {
 			replay(countEl, 'pulse');
 			replay(flashEl, 'on');
@@ -126,6 +137,37 @@
 	countdownEl.addEventListener('click', (e) => {
 		if (e.detail === 0) setState(cancel(state));
 	});
+
+	// ---- Son ---------------------------------------------------------------
+
+	function renderSound() {
+		soundEl.setAttribute('aria-pressed', String(soundOn));
+		soundEl.setAttribute('aria-label', soundOn ? 'Couper le son' : 'Activer le son');
+	}
+
+	soundEl.addEventListener('click', async () => {
+		soundOn = !soundOn;
+		audio.saveSoundOn(soundOn);
+		renderSound();
+		if (soundOn) {
+			await audio.enable();
+			if (soundOn) audio.play('tick');
+		} else {
+			audio.disable();
+		}
+	});
+
+	// Le son ne peut démarrer qu'après une action utilisateur « complète »
+	// (doigt relevé, clic, touche), pas sur un pointerdown tactile. Chaque
+	// appui débloque donc l'audio si le son est activé : utile quand le
+	// réglage est restauré au chargement, ou après une coupure par iOS.
+	for (const type of ['pointerup', 'touchend', 'keydown'] as const) {
+		document.addEventListener(type, () => {
+			if (soundOn) void audio.enable();
+		});
+	}
+
+	renderSound();
 </script>
 
 <style is:global>
@@ -328,6 +370,46 @@
 		.flash.on {
 			animation: none;
 		}
+	}
+
+	/* ---- Bouton son ---------------------------------------------------- */
+	.sound {
+		position: fixed;
+		top: calc(env(safe-area-inset-top) + 1.5vmin);
+		left: calc(env(safe-area-inset-left) + 1.5vmin);
+		width: 52px;
+		height: 52px;
+		display: grid;
+		place-items: center;
+		padding: 0;
+		border: 0;
+		border-radius: 50%;
+		background: color-mix(in srgb, var(--bg) 70%, transparent);
+		opacity: 0.55;
+		transition: opacity 150ms ease;
+	}
+
+	.sound[aria-pressed='true'] {
+		opacity: 0.85;
+	}
+
+	.sound svg {
+		width: 28px;
+		height: 28px;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.sound .speaker {
+		fill: currentColor;
+	}
+
+	.sound[aria-pressed='true'] .off,
+	.sound[aria-pressed='false'] .on {
+		display: none;
 	}
 
 	.go {
